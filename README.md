@@ -9,7 +9,7 @@ A [xlibre-debian/debian](https://github.com/xlibre-debian/debian) mintájára k�
 ```
 naponta 03:17 UTC
    │
-   ├─ check    legfrissebb xlibre-xserver-* tag  +  xlibre-debian/xlibre-server (xlibre/latest) commit
+   ├─ check    legfrissebb xlibre-xserver-* tag  +  a packaging/ mappa állapota
    │           → ha ez a páros még nincs kiadva: build
    ├─ source   upstream forrás + debian/ csomagolás + új changelog bejegyzés → .dsc
    ├─ build    stable/testing × amd64/arm64 (Debian konténerben, natív ARM runneren)
@@ -19,8 +19,10 @@ naponta 03:17 UTC
    └─ notify   hiba esetén automatikus issue
 ```
 
-- **Új build indul**, ha új upstream verzió jelenik meg, *vagy* ha a Debian-csomagolás
-  (xlibre-debian/xlibre-server) változik.
+- **Új build indul**, ha új upstream verzió jelenik meg, *vagy* ha a saját Debian-csomagolás
+  (`packaging/xlibre-server/debian/`) változik.
+- **A csomagolás ebben a tárolóban van**, nem kell hozzá külső tároló. Leírás és karbantartási
+  útmutató: [packaging/xlibre-server/README.md](packaging/xlibre-server/README.md).
 - **Verziószám:** `2:<upstream>-<rev>+auto<időbélyeg>`, pl. `2:25.2.3-0+auto202611152124`.
   Mindig nagyobb, mint az xlibre-debian azonos alapú csomagja, így onnan átállva is frissít.
 - **Driverek, `xlibre` metacsomag, `x11proto-dev`:** ezeket az xlibre-debian tárolóból
@@ -94,15 +96,16 @@ Sikertelen futásnál automatikusan nyílik egy issue a futás linkjével. Tipik
 - megváltozott a driver ABI (`serverminver` – ehhez a drivereket is újra kell fordítani),
 - új build-függőség kell, ami még nincs Debianban / backportsban.
 
-Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább; amint az xlibre-debian
-csomagolása frissül, a következő napi futás magától újrapróbálja.
+Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább. A javítást a
+`packaging/xlibre-server/debian/` mappában kell elvégezni; a push után a workflow magától újrapróbálja.
 
 ## Fájlok
 
 | Fájl | Szerep |
 |---|---|
 | `.github/workflows/update.yml` | a teljes automatika |
-| `scripts/check-upstream.sh` | legfrissebb upstream tag + csomagolási commit |
+| `packaging/xlibre-server/debian/` | a szerver Debian-csomagolása |
+| `scripts/check-upstream.sh` | legfrissebb upstream tag + a csomagolás állapota |
 | `scripts/prepare-source.sh` | forráscsomag (.dsc) készítése |
 | `scripts/build-binary.sh` | fordítás Debian konténerben |
 | `scripts/publish-repo.sh` | APT tároló összeállítása (reprepro) |

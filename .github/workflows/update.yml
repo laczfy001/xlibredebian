@@ -15,7 +15,7 @@ on:
         default: ""
   push:
     branches: [main, master]
-    paths: [".github/workflows/**", "scripts/**", "site/**"]
+    paths: [".github/workflows/**", "scripts/**", "site/**", "packaging/**"]
 
 concurrency:
   group: xlibre-apt
@@ -23,8 +23,7 @@ concurrency:
 
 env:
   UPSTREAM_REPO: https://github.com/X11Libre/xserver.git
-  PACKAGING_REPO: https://github.com/xlibre-debian/xlibre-server.git
-  PACKAGING_BRANCH: xlibre/latest
+  PACKAGING_DIR: packaging/xlibre-server
 
 jobs:
   check:
@@ -85,10 +84,11 @@ jobs:
         env:
           MAINTAINER_NAME: ${{ vars.MAINTAINER_NAME }}
           MAINTAINER_EMAIL: ${{ vars.MAINTAINER_EMAIL }}
+          PACKAGING_ID: ${{ github.sha }}
         run: |
           bash scripts/prepare-source.sh \
             "${{ needs.check.outputs.upstream_version }}" \
-            "${{ needs.check.outputs.packaging_sha }}" \
+            "$PACKAGING_DIR" \
             out/source
       - uses: actions/upload-artifact@v6
         with:
@@ -139,7 +139,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.check.outputs.release_tag }}
           UP: ${{ needs.check.outputs.upstream_version }}
-          PKG: ${{ needs.check.outputs.packaging_sha }}
         run: |
           set -euo pipefail
           mkdir assets
@@ -151,7 +150,7 @@ jobs:
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
           gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --latest \
             --title "xlibre-server $VER" \
-            --notes "Automatikus build. Upstream: [xlibre-xserver-$UP](https://github.com/X11Libre/xserver/releases/tag/xlibre-xserver-$UP) · csomagolás: [${PKG:0:7}](https://github.com/xlibre-debian/xlibre-server/commit/$PKG)"
+            --notes "Automatikus build. Upstream: [xlibre-xserver-$UP](https://github.com/X11Libre/xserver/releases/tag/xlibre-xserver-$UP) · csomagolás: [${GITHUB_SHA:0:7}]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/tree/$GITHUB_SHA/$PACKAGING_DIR)"
 
   publish:
     needs: [check, release]

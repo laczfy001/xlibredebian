@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Debian forráscsomag (.dsc) készítése: upstream tag + xlibre-debian csomagolás + új changelog bejegyzés.
-# Használat: prepare-source.sh <upstream_verzió> <csomagolás_commit> <kimeneti_könyvtár>
+# Debian forráscsomag (.dsc) készítése: upstream tag + saját csomagolás + új changelog bejegyzés.
+# Használat: prepare-source.sh <upstream_verzió> <csomagolás_mappa> <kimeneti_könyvtár>
+#   <csomagolás_mappa>: az a mappa, amelyben a debian/ könyvtár van (pl. packaging/xlibre-server)
 # Kell hozzá: git, xz-utils, dpkg-dev, devscripts
 set -euo pipefail
 
 UP=$1
-PKG_SHA=$2
+PKG_DIR=$(cd "$2" && pwd)
+[[ -f "$PKG_DIR/debian/changelog" ]] || { echo "Nincs debian/changelog itt: $PKG_DIR" >&2; exit 1; }
+PKG_ID=${PACKAGING_ID:-$(git -C "$PKG_DIR" rev-parse --short HEAD 2>/dev/null || echo helyi)}
 OUT=$(mkdir -p "$3" && cd "$3" && pwd)
 
 UPSTREAM_REPO=${UPSTREAM_REPO:-https://github.com/X11Libre/xserver.git}
-PACKAGING_REPO=${PACKAGING_REPO:-https://github.com/xlibre-debian/xlibre-server.git}
 export DEBFULLNAME=${MAINTAINER_NAME:-XLibre auto-builder}
 export DEBEMAIL=${MAINTAINER_EMAIL:-noreply@example.invalid}
 STAMP=${BUILD_STAMP:-$(date -u +%Y%m%d%H%M)}
@@ -24,12 +26,9 @@ git -C "$WORK/upstream" archive --format=tar --prefix="xlibre-server-$UP/" HEAD 
   | xz -T0 -6 > "$WORK/xlibre-server_$UP.orig.tar.xz"
 tar -C "$WORK" -xJf "$WORK/xlibre-server_$UP.orig.tar.xz"
 
-echo ">> Csomagolás: $PACKAGING_REPO @ $PKG_SHA"
-git init --quiet "$WORK/packaging"
-git -C "$WORK/packaging" fetch --quiet --depth 1 "$PACKAGING_REPO" "$PKG_SHA"
-git -C "$WORK/packaging" checkout --quiet FETCH_HEAD
+echo ">> Csomagolás: $PKG_DIR ($PKG_ID)"
 rm -rf "$SRC/debian"
-cp -a "$WORK/packaging/debian" "$SRC/debian"
+cp -a "$PKG_DIR/debian" "$SRC/debian"
 
 # Verziószám: a csomagolás legfelső changelog-bejegyzéséből számolva, mindig annál nagyobb.
 TOP=$(dpkg-parsechangelog -l "$SRC/debian/changelog" -S Version)   # pl. 2:25.2.2-1
@@ -49,7 +48,7 @@ fi
 
 echo ">> Új verzió: $NEWVER"
 (cd "$SRC" && dch --newversion "$NEWVER" --distribution unstable --urgency medium \
-  "Automatikus build: XLibre xserver $UP, csomagolás: ${PKG_SHA:0:7}.")
+  "Automatikus build: XLibre xserver $UP, csomagolás: ${PKG_ID:0:7}.")
 
 (cd "$WORK" && dpkg-source --build "xlibre-server-$UP")
 

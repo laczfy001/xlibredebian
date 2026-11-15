@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Megkeresi a legfrissebb XLibre xserver kiadást és a Debian-csomagolás aktuális commitját.
+# Megkeresi a legfrissebb XLibre xserver kiadást és a saját Debian-csomagolás aktuális állapotát.
 # Kimenet: key=value sorok (stdout, és $GITHUB_OUTPUT, ha létezik).
 set -euo pipefail
 
 UPSTREAM_REPO=${UPSTREAM_REPO:-https://github.com/X11Libre/xserver.git}
-PACKAGING_REPO=${PACKAGING_REPO:-https://github.com/xlibre-debian/xlibre-server.git}
-PACKAGING_BRANCH=${PACKAGING_BRANCH:-xlibre/latest}
+PACKAGING_DIR=${PACKAGING_DIR:-packaging/xlibre-server}
 # Kézzel megadott verzió (pl. 25.2.3); üresen a legfrissebb tag-et használja.
 UPSTREAM_VERSION=${UPSTREAM_VERSION:-}
 
@@ -19,8 +18,9 @@ if [[ -z "$UPSTREAM_VERSION" ]]; then
 fi
 [[ -n "$UPSTREAM_VERSION" ]] || { echo "Nem találtam upstream verziót" >&2; exit 1; }
 
-PACKAGING_SHA=$(git ls-remote "$PACKAGING_REPO" "refs/heads/$PACKAGING_BRANCH" | cut -f1)
-[[ -n "$PACKAGING_SHA" ]] || { echo "Nem találom a csomagolási ágat: $PACKAGING_BRANCH" >&2; exit 1; }
+# A csomagolás mappájának git tree-hash-e: bármilyen változás a debian/ fájlokban új buildet indít.
+PACKAGING_SHA=$(git rev-parse "HEAD:$PACKAGING_DIR")
+[[ -n "$PACKAGING_SHA" ]] || { echo "Nem találom a csomagolást: $PACKAGING_DIR" >&2; exit 1; }
 
 RELEASE_TAG="xlibre-server-${UPSTREAM_VERSION}-pkg${PACKAGING_SHA:0:7}"
 
