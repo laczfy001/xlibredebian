@@ -21,6 +21,11 @@ concurrency:
   group: xlibre-apt
   cancel-in-progress: false
 
+# Konténeres feladatokban a GitHub alapból sh-t használ; minden lépés fusson bash-sel.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   check:
     runs-on: ubuntu-latest
