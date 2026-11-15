@@ -38,7 +38,7 @@ jobs:
       release_tag: ${{ steps.up.outputs.release_tag }}
       build: ${{ steps.decide.outputs.build }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Upstream és csomagolás verziójának lekérdezése
         id: up
@@ -80,7 +80,7 @@ jobs:
         run: |
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends git ca-certificates xz-utils dpkg-dev devscripts >/dev/null
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Forráscsomag készítése
         env:
           MAINTAINER_NAME: ${{ vars.MAINTAINER_NAME }}
@@ -90,7 +90,7 @@ jobs:
             "${{ needs.check.outputs.upstream_version }}" \
             "${{ needs.check.outputs.packaging_sha }}" \
             out/source
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: source
           path: out/source/
@@ -111,8 +111,8 @@ jobs:
     container: debian:${{ matrix.component }}
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v7
         with:
           name: source
           path: in/source
@@ -120,7 +120,7 @@ jobs:
         env:
           DEB_BUILD_OPTIONS: ${{ vars.DEB_BUILD_OPTIONS }}
         run: bash scripts/build-binary.sh "${{ matrix.component }}" in/source out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: debs-${{ matrix.component }}-${{ matrix.arch }}
           path: out/
@@ -131,7 +131,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: art
       - name: GitHub kiadás létrehozása
@@ -165,10 +165,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Pages beállítás
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Eszközök
         run: sudo apt-get update -qq && sudo apt-get install -y -qq reprepro gnupg >/dev/null
       - name: Aláíró kulcs importálása
@@ -214,12 +214,12 @@ jobs:
           INCLUDE_DBGSYM: ${{ vars.INCLUDE_DBGSYM || 'false' }}
           SITE_URL: ${{ steps.pages.outputs.base_url }}
         run: bash scripts/publish-repo.sh in public
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: public
       - name: Publikálás GitHub Pages-re
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   notify:
     needs: [check, source, build, release, publish]

@@ -48,6 +48,8 @@ BUILD=$(mktemp -d)
 dpkg-source -x "$SRC_DIR"/xlibre-server_*.dsc "$BUILD/src"
 cd "$BUILD/src"
 apt-get build-dep -y ./
+# A tesztcsomag az xrandr-t is futtatja, de ez nincs a Build-Depends-ben.
+apt-get install -y -qq --no-install-recommends x11-xserver-utils >/dev/null
 
 dpkg-buildpackage -b -uc -us -j"$(nproc)"
 

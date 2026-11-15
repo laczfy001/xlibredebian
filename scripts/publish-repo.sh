@@ -36,6 +36,13 @@ mkdir -p "$WORK/conf"
   [[ "$MIRROR_EXTRAS" == "true" ]] && echo "Update: xlibre-extras"
 } > "$WORK/conf/distributions"
 
+# A reprepro legfeljebb 16 hexa számjegyet fogad el (az ujjlenyomat vége).
+MIRROR_KEY_ID=blindtrust
+if [[ -n "${MIRROR_KEY_FPR:-}" ]]; then
+  MIRROR_KEY_ID=$(echo "$MIRROR_KEY_FPR" | tr -d ' ' | tr '[:lower:]' '[:upper:]')
+  MIRROR_KEY_ID=${MIRROR_KEY_ID: -16}
+fi
+
 if [[ "$MIRROR_EXTRAS" == "true" ]]; then
   # Mindent tükrözünk, KIVÉVE: a saját magunk által épített xlibre-server forrás
   # csomagjait, a debug szimbólumokat és a másik tároló kulcscsomagjait.
@@ -45,7 +52,7 @@ Method: $MIRROR_URL
 Suite: main
 Components: $COMPONENTS
 Architectures: amd64 arm64
-VerifyRelease: ${MIRROR_KEY_FPR:-blindtrust}
+VerifyRelease: $MIRROR_KEY_ID
 FilterFormula: !\$Source (== xlibre-server), !Package (% *-dbgsym), !Package (== xlibre-archive-keyring), !Package (== nexussfan-archive-keyring)
 EOF
 fi
