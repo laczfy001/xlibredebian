@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XLibre APT tároló (automatikus)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #222; }
+  pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; border-radius: 6px; }
+  code { font-family: ui-monospace, monospace; }
+  .meta { color: #666; font-size: .9rem; }
+</style>
+</head>
+<body>
+<h1>XLibre APT tároló Debianra</h1>
+<p class="meta">xlibre-server: <strong>@SERVER_VER@</strong> · frissítve: @DATE@ · <a href="packages.txt">csomaglista</a></p>
+<p>Nem hivatalos, automatikusan frissülő tároló. Debian Stable (Trixie) esetén a
+<a href="https://backports.debian.org/Instructions/">backports</a> engedélyezése szükséges.</p>
+<pre><code>sudo apt-get update
+sudo apt-get install -y ca-certificates curl gpg
+
+curl -fsSL @SITE_URL@key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/xlibre-auto.pgp &gt; /dev/null
+
+cat &lt;&lt;EOF | sudo tee /etc/apt/sources.list.d/xlibre-auto.sources
+Types: deb
+URIs: @SITE_URL@
+Suites: main
+Components: stable
+Signed-By: /usr/share/keyrings/xlibre-auto.pgp
+EOF
+
+sudo apt-get update
+sudo apt-get install xlibre</code></pre>
+<p>Debian Testing (Forky) esetén: <code>Components: testing</code>.</p>
+<p>Visszatérés Xorg-ra:</p>
+<pre><code>sudo apt-get remove xlibre 'xserver-xlibre*'
+sudo apt-get install xorg
+sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources</code></pre>
+</body>
+</html>

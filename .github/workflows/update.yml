@@ -1,0 +1,245 @@
+name: XLibre build és APT tároló
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # naponta 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Újrafordítás akkor is, ha ez a verzió már elkészült"
+        type: boolean
+        default: false
+      upstream_version:
+        description: "Konkrét upstream verzió (pl. 25.2.3); üresen a legfrissebb"
+        type: string
+        default: ""
+  push:
+    branches: [main, master]
+    paths: [".github/workflows/**", "scripts/**", "site/**"]
+
+concurrency:
+  group: xlibre-apt
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: https://github.com/X11Libre/xserver.git
+  PACKAGING_REPO: https://github.com/xlibre-debian/xlibre-server.git
+  PACKAGING_BRANCH: xlibre/latest
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write   # a napi futás életben tartásához
+    outputs:
+      upstream_version: ${{ steps.up.outputs.upstream_version }}
+      packaging_sha: ${{ steps.up.outputs.packaging_sha }}
+      release_tag: ${{ steps.up.outputs.release_tag }}
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upstream és csomagolás verziójának lekérdezése
+        id: up
+        env:
+          UPSTREAM_VERSION: ${{ inputs.upstream_version }}
+        run: bash scripts/check-upstream.sh
+
+      - name: Kell-e új build?
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.up.outputs.release_tag }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [[ "$FORCE" == "true" ]] || ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "### Új build: $TAG" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "### $TAG már elkészült, csak a tároló frissül" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Ütemezett futás életben tartása
+        # Nyilvános tárolóban a GitHub 60 nap inaktivitás után kikapcsolja az ütemezést;
+        # az "enable" hívás ezt az időzítőt nullázza.
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/update.yml/enable"
+
+  source:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    container: debian:stable
+    steps:
+      - name: Eszközök
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends git ca-certificates xz-utils dpkg-dev devscripts >/dev/null
+      - uses: actions/checkout@v4
+      - name: Forráscsomag készítése
+        env:
+          MAINTAINER_NAME: ${{ vars.MAINTAINER_NAME }}
+          MAINTAINER_EMAIL: ${{ vars.MAINTAINER_EMAIL }}
+        run: |
+          bash scripts/prepare-source.sh \
+            "${{ needs.check.outputs.upstream_version }}" \
+            "${{ needs.check.outputs.packaging_sha }}" \
+            out/source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: out/source/
+
+  build:
+    needs: [check, source]
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [stable, testing]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container: debian:${{ matrix.component }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+          path: in/source
+      - name: Fordítás (${{ matrix.component }}/${{ matrix.arch }})
+        env:
+          DEB_BUILD_OPTIONS: ${{ vars.DEB_BUILD_OPTIONS }}
+        run: bash scripts/build-binary.sh "${{ matrix.component }}" in/source out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debs-${{ matrix.component }}-${{ matrix.arch }}
+          path: out/
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+      - name: GitHub kiadás létrehozása
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.release_tag }}
+          UP: ${{ needs.check.outputs.upstream_version }}
+          PKG: ${{ needs.check.outputs.packaging_sha }}
+        run: |
+          set -euo pipefail
+          mkdir assets
+          cp art/source/* assets/
+          for d in art/debs-*; do
+            tar -C "$d" -cf "assets/$(basename "$d").tar" .
+          done
+          VER=$(cat art/source/VERSION)
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --latest \
+            --title "xlibre-server $VER" \
+            --notes "Automatikus build. Upstream: [xlibre-xserver-$UP](https://github.com/X11Libre/xserver/releases/tag/xlibre-xserver-$UP) · csomagolás: [${PKG:0:7}](https://github.com/xlibre-debian/xlibre-server/commit/$PKG)"
+
+  publish:
+    needs: [check, release]
+    if: always() && needs.check.result == 'success' && needs.release.result != 'failure' && needs.release.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pages beállítás
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Eszközök
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq reprepro gnupg >/dev/null
+      - name: Aláíró kulcs importálása
+        id: key
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          [[ -n "$APT_SIGNING_KEY" ]] || { echo "::error::Hiányzik az APT_SIGNING_KEY secret"; exit 1; }
+          echo "$APT_SIGNING_KEY" | gpg --batch --import
+          echo "fpr=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')" >> "$GITHUB_OUTPUT"
+      - name: Tükrözött tároló kulcsa
+        if: vars.MIRROR_EXTRAS != 'false'
+        id: mirrorkey
+        run: |
+          curl -fsSL "${{ vars.MIRROR_KEY_URL || 'https://mrchicken.nexussfan.cz/publickey.asc' }}" | gpg --batch --import
+          FPR="${{ vars.MIRROR_KEY_FPR }}"
+          if [[ -z "$FPR" ]]; then
+            FPR=$(curl -fsSL "${{ vars.MIRROR_KEY_URL || 'https://mrchicken.nexussfan.cz/publickey.asc' }}" | gpg --with-colons --import-options show-only --import | awk -F: '/^fpr/{print $10; exit}')
+          fi
+          echo "fpr=$FPR" >> "$GITHUB_OUTPUT"
+      - name: Legutóbbi saját build letöltése
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p in/source in/stable in/testing dl
+          TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isLatest \
+                  -q '[.[] | select(.tagName | startswith("xlibre-server-"))] | (map(select(.isLatest)) + .)[0].tagName // empty')
+          if [[ -z "$TAG" ]]; then echo "::warning::Még nincs saját build, csak tükrözés"; exit 0; fi
+          echo "Kiadás: $TAG"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dl
+          mv dl/*.dsc dl/*.orig.tar.* dl/*.debian.tar.* in/source/
+          for t in dl/debs-*.tar; do
+            comp=$(basename "$t" .tar | cut -d- -f2)
+            tar -C "in/$comp" -xf "$t"
+          done
+      - name: Tároló összeállítása
+        env:
+          SIGNING_FPR: ${{ steps.key.outputs.fpr }}
+          MIRROR_EXTRAS: ${{ vars.MIRROR_EXTRAS || 'true' }}
+          MIRROR_URL: ${{ vars.MIRROR_URL || 'https://xlibre-debian.github.io/debian' }}
+          MIRROR_KEY_FPR: ${{ steps.mirrorkey.outputs.fpr }}
+          INCLUDE_DBGSYM: ${{ vars.INCLUDE_DBGSYM || 'false' }}
+          SITE_URL: ${{ steps.pages.outputs.base_url }}
+        run: bash scripts/publish-repo.sh in public
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Publikálás GitHub Pages-re
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+  notify:
+    needs: [check, source, build, release, publish]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Hibajegy nyitása
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.release_tag }}
+        run: |
+          TITLE="Sikertelen automatikus build: ${TAG:-ismeretlen}"
+          URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          EXISTING=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number -q '.[0].number')
+          if [[ -n "$EXISTING" ]]; then
+            gh issue comment "$EXISTING" --repo "$GITHUB_REPOSITORY" --body "Újra sikertelen: $URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "A workflow futása sikertelen: $URL
+
+          Gyakori okok: a debian/patches nem illeszkedik az új upstream verzióra, megváltozott az ABI (serverminver), vagy új build-függőség kell."
+          fi
