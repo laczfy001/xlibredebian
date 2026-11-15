@@ -1,35 +1,38 @@
 # XLibre APT tároló Debianra – automatikus frissítéssel
 
-Nem hivatalos Debian tároló az [XLibre X szerverhez](https://github.com/X11Libre/xserver).
+Nem hivatalos Debian tároló az [XLibre X szerverhez](https://github.com/X11Libre/xserver) és a drivereihez.
 A [xlibre-debian/debian](https://github.com/xlibre-debian/debian) mintájára készült, de itt
 **a GitHub Actions naponta ellenőrzi, van-e új XLibre kiadás, és ha igen, magától lefordítja és publikálja.**
+Minden csomag a hivatalos [X11Libre GitHub](https://github.com/X11Libre) forrásaiból készül,
+a Debian-csomagolás pedig ebben a tárolóban van – más tárolótól nem függ.
 
 ## Hogyan működik
 
 ```
 naponta 03:17 UTC
    │
-   ├─ check    legfrissebb xlibre-xserver-* tag  +  a packaging/ mappa állapota
-   │           → ha ez a páros még nincs kiadva: build
-   ├─ source   upstream forrás + debian/ csomagolás + új changelog bejegyzés → .dsc
-   ├─ build    stable/testing × amd64/arm64 (Debian konténerben, natív ARM runneren)
+   ├─ check    mind a 24 csomag legfrissebb kiadása (packaging/packages.list) + a packaging/ állapota
+   │           → ha ez a kombináció még nincs kiadva: build
+   ├─ source   upstream forrás + debian/ csomagolás + új changelog bejegyzés → .dsc (mindegyikre)
+   ├─ build    stable/testing × amd64/arm64, Debian konténerben, sorrendben:
+   │           xorgproto → xlibre-server → 21 driver (a friss szerverre) → xlibre metacsomag
    ├─ release  a .deb-ek GitHub Release-be kerülnek (ez az "állapot", git-be nem kerül bináris)
-   ├─ publish  reprepro: saját xlibre-server + tükrözött driverek/metacsomag → aláírt APT tároló
-   │           → GitHub Pages
+   ├─ publish  reprepro → aláírt APT tároló → GitHub Pages
    └─ notify   hiba esetén automatikus issue
 ```
 
-- **Új build indul**, ha új upstream verzió jelenik meg, *vagy* ha a saját Debian-csomagolás
-  (`packaging/xlibre-server/debian/`) változik.
-- **A csomagolás ebben a tárolóban van**, nem kell hozzá külső tároló. Leírás és karbantartási
-  útmutató: [packaging/xlibre-server/README.md](packaging/xlibre-server/README.md).
-- **Verziószám:** `2:<upstream>-<rev>+auto<időbélyeg>`, pl. `2:25.2.3-0+auto202611152124`.
+- **Csomagok:** az X szerver (`xserver-xlibre-*`), 10 input és 11 video driver, az
+  `x11proto-dev` és az `xlibre` metacsomag. A teljes lista: [packaging/packages.list](packaging/packages.list).
+- **Új build indul**, ha bármelyik csomagnak új upstream kiadása jelenik meg, *vagy* ha a
+  `packaging/` mappában bármi változik. Ilyenkor minden csomag újrafordul, így a driverek
+  mindig az aktuális szerverhez készülnek.
+- **A csomagolás ebben a tárolóban van.** Karbantartási útmutató és új csomag felvétele:
+  [packaging/README.md](packaging/README.md).
+- **Verziószám:** `<epoch>:<upstream>-<rev>+auto<időbélyeg>`, pl. `2:25.2.3-0+auto202611152124`.
   Mindig nagyobb, mint az xlibre-debian azonos alapú csomagja, így onnan átállva is frissít.
-- **Driverek, `xlibre` metacsomag, `x11proto-dev`:** ezeket az xlibre-debian tárolóból
-  tükrözi (a `-dbgsym` és a kulcscsomagok nélkül), így ez a tároló önmagában is elég a telepítéshez.
-  Kikapcsolható: `MIRROR_EXTRAS=false` változó.
-- **ABI-védelem:** a csomagolás `abibumpcheck` lépése leállítja a buildet, ha az új upstream
-  verzió megváltoztatja a driver ABI-t – ilyenkor nem kerül ki olyan szerver, amivel a driverek nem mennek.
+- **ABI-védelem:** a szerver csomagolásának `abibumpcheck` lépése leállítja a buildet, ha az új
+  upstream verzió megváltoztatja a driver ABI-t – ilyenkor nem kerül ki olyan szerver, amivel a driverek nem mennek.
+- **Hiba esetén** semmi nem kerül ki: a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
 
 ## Beállítás (egyszer)
 
@@ -46,13 +49,12 @@ naponta 03:17 UTC
    | Változó | Jelentés | Alapérték |
    |---|---|---|
    | `MAINTAINER_NAME`, `MAINTAINER_EMAIL` | a changelog-bejegyzés szerzője | `XLibre auto-builder` |
-   | `MIRROR_EXTRAS` | driverek stb. tükrözése | `true` |
-   | `MIRROR_KEY_FPR` | a tükrözött tároló kulcsának rögzített ujjlenyomata (ajánlott) | letöltéskor kiolvasva |
+   | `MIRROR_EXTRAS` | egy másik APT tároló csomagjainak tükrözése (`MIRROR_URL`, `MIRROR_KEY_URL`, `MIRROR_KEY_FPR`) – a saját csomagokat felülírni nem tudja | `false` |
    | `INCLUDE_DBGSYM` | debug csomagok publikálása | `false` |
    | `DEB_BUILD_OPTIONS` | pl. `nocheck` a gyorsabb buildhez | üres |
 5. **Első futás:** Actions → *XLibre build és APT tároló* → **Run workflow**.
 
-Kézi futtatáskor megadható konkrét verzió (`upstream_version`) és kényszerített újrafordítás (`force`).
+Kézi futtatáskor megadható konkrét szerververzió (`upstream_version`) és kényszerített újrafordítás (`force`).
 
 ## Telepítés a felhasználók gépén
 
@@ -90,24 +92,23 @@ sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources
 
 ## Ha elromlik
 
-Sikertelen futásnál automatikusan nyílik egy issue a futás linkjével. Tipikus okok:
+Sikertelen futásnál automatikusan nyílik egy issue a futás linkjével. A naplóban a `::error::`
+sor mutatja, melyik csomag bukott el. Tipikus okok: nem illeszkedő patch, megváltozott driver ABI
+(`serverminver`), új build-függőség. A teendőket a [packaging/README.md](packaging/README.md) írja le;
+a javítás pusholása után a workflow magától újrapróbálja.
 
-- a `debian/patches` már nem illeszkedik az új upstream forrásra,
-- megváltozott a driver ABI (`serverminver` – ehhez a drivereket is újra kell fordítani),
-- új build-függőség kell, ami még nincs Debianban / backportsban.
-
-Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább. A javítást a
-`packaging/xlibre-server/debian/` mappában kell elvégezni; a push után a workflow magától újrapróbálja.
+Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
 
 ## Fájlok
 
 | Fájl | Szerep |
 |---|---|
 | `.github/workflows/update.yml` | a teljes automatika |
-| `packaging/xlibre-server/debian/` | a szerver Debian-csomagolása |
-| `scripts/check-upstream.sh` | legfrissebb upstream tag + a csomagolás állapota |
-| `scripts/prepare-source.sh` | forráscsomag (.dsc) készítése |
-| `scripts/build-binary.sh` | fordítás Debian konténerben |
+| `packaging/packages.list` | a csomagok listája, upstream forrása és fordítási sorrendje |
+| `packaging/<csomag>/debian/` | az egyes csomagok Debian-csomagolása |
+| `scripts/check-upstream.sh` | minden csomag legfrissebb upstream kiadása + build azonosító |
+| `scripts/prepare-source.sh` | egy forráscsomag (.dsc) készítése |
+| `scripts/build-binary.sh` | az összes csomag fordítása sorrendben, Debian konténerben |
 | `scripts/publish-repo.sh` | APT tároló összeállítása (reprepro) |
 | `scripts/generate-signing-key.sh` | aláíró kulcs létrehozása |
 | `site/index.html.in` | a tároló nyitóoldala |

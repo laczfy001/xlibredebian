@@ -5,8 +5,9 @@
 #   <bemenet>/stable/*.deb, <bemenet>/testing/*.deb – saját buildek (opcionális)
 # Környezeti változók:
 #   SIGNING_FPR        – aláíró GPG kulcs ujjlenyomata (üresen: aláíratlan, csak teszthez)
-#   MIRROR_EXTRAS      – true: a többi csomag (driverek, metacsomag, xorgproto) tükrözése
-#   MIRROR_URL         – honnan tükrözzünk (alapból az xlibre-debian tároló)
+#   MIRROR_EXTRAS      – true: egy másik tároló csomagjainak tükrözése is (alapból kikapcsolva;
+#                        a saját buildben szereplő forráscsomagokat ilyenkor sem veszi át)
+#   MIRROR_URL         – honnan tükrözzünk (pl. az xlibre-debian tároló)
 #   MIRROR_KEY_FPR     – a tükrözött tároló kulcsának ujjlenyomata (üresen: blindtrust)
 #   INCLUDE_DBGSYM     – true: a -dbgsym csomagok is bekerülnek
 #   SITE_URL           – a publikált tároló URL-je (index.html-hez)
@@ -18,7 +19,7 @@ WORK=$(mktemp -d)
 
 ORIGIN=${ORIGIN:-XLibre-auto}
 LABEL=${LABEL:-XLibre automatikus Debian tároló}
-MIRROR_EXTRAS=${MIRROR_EXTRAS:-true}
+MIRROR_EXTRAS=${MIRROR_EXTRAS:-false}
 MIRROR_URL=${MIRROR_URL:-https://xlibre-debian.github.io/debian}
 INCLUDE_DBGSYM=${INCLUDE_DBGSYM:-false}
 SITE_URL=${SITE_URL:-https://example.github.io/xlibre-apt/}
@@ -44,8 +45,14 @@ if [[ -n "${MIRROR_KEY_FPR:-}" ]]; then
 fi
 
 if [[ "$MIRROR_EXTRAS" == "true" ]]; then
-  # Mindent tükrözünk, KIVÉVE: a saját magunk által épített xlibre-server forrás
-  # csomagjait, a debug szimbólumokat és a másik tároló kulcscsomagjait.
+  # Mindent tükrözünk, KIVÉVE: a saját magunk által épített forráscsomagokat,
+  # a debug szimbólumokat és a másik tároló kulcscsomagjait.
+  LIST=${PACKAGES_LIST:-$(dirname "$0")/../packaging/packages.list}
+  OWN=""
+  for d in $(awk -F'\t' '$1 !~ /^#/ && NF {print $1}' "$LIST"); do
+    src=$(awk '/^Source:/{print $2; exit}' "$(dirname "$LIST")/$d/debian/control")
+    OWN+="!\$Source (== $src), "
+  done
   cat > "$WORK/conf/updates" <<EOF
 Name: xlibre-extras
 Method: $MIRROR_URL
@@ -53,7 +60,7 @@ Suite: main
 Components: $COMPONENTS
 Architectures: amd64 arm64
 VerifyRelease: $MIRROR_KEY_ID
-FilterFormula: !\$Source (== xlibre-server), !Package (% *-dbgsym), !Package (== xlibre-archive-keyring), !Package (== nexussfan-archive-keyring)
+FilterFormula: ${OWN}!Package (% *-dbgsym), !Package (== xlibre-archive-keyring), !Package (== nexussfan-archive-keyring)
 EOF
 fi
 

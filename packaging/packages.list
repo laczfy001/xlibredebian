@@ -1,0 +1,29 @@
+# Csomagok fordítási sorrendben.
+# Oszlopok: <mappa>  <upstream git tároló | ->  <tag-előtag | ->  <mód>
+#   latest: mindig a legfrissebb upstream kiadás
+#   pinned: a debian/changelog szerinti upstream verzió (csak kézi frissítés)
+#   native: nincs külön upstream, a mappa maga a forrás
+xorgproto	https://github.com/X11Libre/mirror.fdo.xorgproto.git	xorgproto-	pinned
+xlibre-server	https://github.com/X11Libre/xserver.git	xlibre-xserver-	latest
+xserver-xlibre-input-elographics	https://github.com/X11Libre/xf86-input-elographics.git	xlibre-xf86-input-elographics-	latest
+xserver-xlibre-input-evdev	https://github.com/X11Libre/xf86-input-evdev.git	xlibre-xf86-input-evdev-	latest
+xserver-xlibre-input-joystick	https://github.com/X11Libre/xf86-input-joystick.git	xlibre-xf86-input-joystick-	latest
+xserver-xlibre-input-keyboard	https://github.com/X11Libre/xf86-input-keyboard.git	xlibre-xf86-input-keyboard-	latest
+xserver-xlibre-input-libinput	https://github.com/X11Libre/xf86-input-libinput.git	xlibre-xf86-input-libinput-	latest
+xserver-xlibre-input-mouse	https://github.com/X11Libre/xf86-input-mouse.git	xlibre-xf86-input-mouse-	latest
+xserver-xlibre-input-synaptics	https://github.com/X11Libre/xf86-input-synaptics.git	xlibre-xf86-input-synaptics-	latest
+xserver-xlibre-input-vmmouse	https://github.com/X11Libre/xf86-input-vmmouse.git	xlibre-xf86-input-vmmouse-	latest
+xserver-xlibre-input-void	https://github.com/X11Libre/xf86-input-void.git	xlibre-xf86-input-void-	latest
+xserver-xlibre-input-wacom	https://github.com/X11Libre/xf86-input-wacom.git	xlibre-xf86-input-wacom-	latest
+xserver-xlibre-video-amdgpu	https://github.com/X11Libre/xf86-video-amdgpu.git	xlibre-xf86-video-amdgpu-	latest
+xserver-xlibre-video-ati	https://github.com/X11Libre/xf86-video-ati.git	xlibre-xf86-video-ati-	latest
+xserver-xlibre-video-dummy	https://github.com/X11Libre/xf86-video-dummy.git	xlibre-xf86-video-dummy-	latest
+xserver-xlibre-video-fbdev	https://github.com/X11Libre/xf86-video-fbdev.git	xlibre-xf86-video-fbdev-	latest
+xserver-xlibre-video-intel	https://github.com/X11Libre/xf86-video-intel.git	xlibre-xf86-video-intel-	latest
+xserver-xlibre-video-nouveau	https://github.com/X11Libre/xf86-video-nouveau.git	xlibre-xf86-video-nouveau-	latest
+xserver-xlibre-video-qxl	https://github.com/X11Libre/xf86-video-qxl.git	xlibre-xf86-video-qxl-	latest
+xserver-xlibre-video-sisusb	https://github.com/X11Libre/xf86-video-sisusb.git	xlibre-xf86-video-sisusb-	latest
+xserver-xlibre-video-vesa	https://github.com/X11Libre/xf86-video-vesa.git	xlibre-xf86-video-vesa-	latest
+xserver-xlibre-video-vmware	https://github.com/X11Libre/xf86-video-vmware.git	xlibre-xf86-video-vmware-	latest
+xserver-xlibre-video-voodoo	https://github.com/X11Libre/xf86-video-voodoo.git	xlibre-xf86-video-voodoo-	latest
+xlibre	-	-	native
