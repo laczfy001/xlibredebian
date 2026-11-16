@@ -37,6 +37,9 @@ EOF
 sudo apt-get update
 sudo apt-get install xlibre</code></pre>
 <p>On Debian Testing (Forky), use <code>Components: testing</code>.</p>
+<p>Fingerprint of the repository signing key: <code>@KEY_FPR@</code><br>
+To verify after downloading (the fingerprint shown must match the one above):
+<code>gpg --show-keys /usr/share/keyrings/xlibre-auto.pgp</code></p>
 <p>If you previously used the xlibre-debian repository, first delete
 <code>/etc/apt/sources.list.d/xlibre-debian.sources</code>. If <code>apt</code> reports a missing
 dependency, enable Debian <a href="https://backports.debian.org/Instructions/">backports</a>.</p>

@@ -30,6 +30,9 @@ sudo apt-get install xlibre
 
 On Debian Testing (Forky), use `Components: testing`.
 
+To verify the downloaded key: the fingerprint printed by `gpg --show-keys /usr/share/keyrings/xlibre-auto.pgp`
+must match the one shown on the [landing page](https://laczfy001.github.io/xlibredebian/en.html).
+
 If you previously used the xlibre-debian repository, disable it first so that there are not two
 sources for the same packages. `apt-get upgrade` will then move you to these builds, because
 their version numbers are always higher:
@@ -99,6 +102,44 @@ after pushing the fix, the workflow retries automatically.
 
 In the meantime, the repository keeps serving the last successful build.
 
+## Security
+
+- **Permissions:** the workflow gets read-only access by default. Only the release, publish and
+  issue steps request write access. The build steps, which run the upstream projects' code, get no
+  write access, and the repository token is not left available to them.
+- **Signing key:** only the publish step can access it; it never reaches the build steps.
+- **Authenticity of the upstream source:** the server's release tags are PGP-signed by XLibre's lead
+  developer. If the `SERVER_TAG_KEY_FPR` variable is set, the workflow only builds server releases
+  signed with that key. Enabling it is recommended (see below). The drivers' tags are not signed;
+  for those you have to trust the GitHub repository.
+- **Automatic signing:** the workflow signs and publishes whatever upstream releases. If you want to
+  approve every release by hand: Settings → Environments → `github-pages` → *Required reviewers*.
+  Publishing will then wait for your approval.
+- **Mirroring** (`MIRROR_EXTRAS=true`) only runs with a pinned key fingerprint (`MIRROR_KEY_FPR`).
+- **Key expiry:** `generate-signing-key.sh` creates a key valid for 5 years. Before it expires,
+  extend it from your backup (`gpg --quick-set-expire <fingerprint> 5y`), upload the secret again,
+  and tell users to download `key.asc` again.
+
+### Enabling server signature verification
+
+All releases so far were signed with this key: `AD5E30F506DB217B8C4D02C9FD134449A70E5E66`
+(Enrico Weigelt, metux IT consult, `info@metux.net`). Check it yourself before enabling:
+
+```sh
+git clone -q --depth 1 --branch xlibre-xserver-25.2.3 https://github.com/X11Libre/xserver.git /tmp/xs
+git -C /tmp/xs cat-file -p xlibre-xserver-25.2.3 | sed -n '/BEGIN PGP/,$p' | gpg --list-packets | grep 'issuer fpr'
+curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0xAD5E30F506DB217B8C4D02C9FD134449A70E5E66' | gpg --show-keys
+```
+
+If both outputs show the same fingerprint:
+
+```sh
+gh variable set SERVER_TAG_KEY_FPR --body AD5E30F506DB217B8C4D02C9FD134449A70E5E66
+```
+
+If a release is ever published with a different key (or unsigned), the build stops and an issue is
+opened. Check whether the release is genuine and update the variable if needed.
+
 ## Setting up your own instance
 
 This repository is already set up and running. The steps below are only needed if you want to
@@ -117,7 +158,9 @@ run your own instance (fork or copy):
    | Variable | Meaning | Default |
    |---|---|---|
    | `MAINTAINER_NAME`, `MAINTAINER_EMAIL` | author of the changelog entries | `XLibre auto-builder` |
-   | `MIRROR_EXTRAS` | also mirror the packages of another APT repository (`MIRROR_URL`, `MIRROR_KEY_URL`, `MIRROR_KEY_FPR`) – it cannot override the packages built here | `false` |
+   | `SERVER_TAG_KEY_FPR` | verify the server's tag signature with this key (see *Security*) | empty (off) |
+   | `SERVER_TAG_KEY_URL` | where to download that key from | keyserver.ubuntu.com |
+   | `MIRROR_EXTRAS` | also mirror the packages of another APT repository (`MIRROR_URL`, `MIRROR_KEY_URL`, required `MIRROR_KEY_FPR`) – it cannot override the packages built here | `false` |
    | `INCLUDE_DBGSYM` | publish debug symbol packages | `false` |
    | `DEB_BUILD_OPTIONS` | e.g. `nocheck` for faster builds | empty |
 5. **Push the files** (`git push`): this starts the first run automatically, which takes about 10 minutes.

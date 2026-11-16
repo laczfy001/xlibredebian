@@ -8,6 +8,10 @@ LIST=${PACKAGES_LIST:-packaging/packages.list}
 BUILD_SET=${BUILD_SET:-build-set.tsv}
 # Kézzel megadott szerververzió (pl. 25.2.3); üresen a legfrissebb tag.
 UPSTREAM_VERSION=${UPSTREAM_VERSION:-}
+if [[ -n "$UPSTREAM_VERSION" && ! "$UPSTREAM_VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+  echo "Érvénytelen verzió: '$UPSTREAM_VERSION' (pl. 25.2.3 formában add meg)" >&2
+  exit 1
+fi
 
 changelog_version() { sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' "$1"; }
 upstream_part() { local v=${1#*:}; [[ "$v" == *-* ]] && v=${v%-*}; echo "$v"; }

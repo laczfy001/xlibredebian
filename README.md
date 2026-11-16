@@ -30,6 +30,9 @@ sudo apt-get install xlibre
 
 Debian Testing (Forky) esetén `Components: testing`.
 
+A letöltött kulcs ellenőrzése: a `gpg --show-keys /usr/share/keyrings/xlibre-auto.pgp` által kiírt
+ujjlenyomatnak egyeznie kell a [nyitóoldalon](https://laczfy001.github.io/xlibredebian/) közölttel.
+
 Ha korábban a xlibre-debian tárolót használtad, előbb kapcsold ki, hogy ne legyen két forrás
 ugyanazokra a csomagokra. Az `apt-get upgrade` ezután a saját buildekre frissít, mert azok
 verziószáma mindig nagyobb:
@@ -99,6 +102,44 @@ a javítás pusholása után a workflow magától újrapróbálja.
 
 Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
 
+## Biztonság
+
+- **Jogosultságok:** a workflow alapból csak olvasási jogot kap. Írási jogot csak a kiadást
+  készítő, a publikáló és a hibajegyet nyitó lépés kér. A fordító lépések, amelyek az upstream
+  projektek kódját futtatják, nem kapnak írási jogot, és a tároló tokenje sem marad elérhető számukra.
+- **Aláíró kulcs:** csak a publikáló lépés fér hozzá, a fordításokhoz nem kerül el.
+- **Az upstream forrás hitelessége:** a szerver kiadási tag-jeit az XLibre vezető fejlesztője
+  PGP-vel aláírja. Ha a `SERVER_TAG_KEY_FPR` változó be van állítva, a workflow csak az e kulccsal
+  aláírt szerverkiadást fordítja le. Ajánlott bekapcsolni (lásd lent). A driverek tag-jei nincsenek
+  aláírva; ezeknél a GitHub-tárolóban kell megbízni.
+- **Automatikus aláírás:** a workflow mindent aláír és kiad, amit az upstream kiad. Ha minden
+  kiadás előtt kézi jóváhagyást szeretnél: Settings → Environments → `github-pages` →
+  *Required reviewers*. Ekkor a publikálás megvárja, hogy jóváhagyd.
+- **Tükrözés** (`MIRROR_EXTRAS=true`) csak rögzített kulcs-ujjlenyomattal (`MIRROR_KEY_FPR`) indul.
+- **A kulcs lejárata:** a `generate-signing-key.sh` 5 évre szóló kulcsot készít. Lejárat előtt
+  hosszabbítsd meg a biztonsági mentésből (`gpg --quick-set-expire <ujjlenyomat> 5y`), töltsd fel
+  újra a secretet, és szólj a felhasználóknak, hogy töltsék le újra a `key.asc`-t.
+
+### A szerver aláírás-ellenőrzésének bekapcsolása
+
+Az eddigi kiadásokat ez a kulcs írta alá: `AD5E30F506DB217B8C4D02C9FD134449A70E5E66`
+(Enrico Weigelt, metux IT consult, `info@metux.net`). Bekapcsolás előtt ellenőrizd te is:
+
+```sh
+git clone -q --depth 1 --branch xlibre-xserver-25.2.3 https://github.com/X11Libre/xserver.git /tmp/xs
+git -C /tmp/xs cat-file -p xlibre-xserver-25.2.3 | sed -n '/BEGIN PGP/,$p' | gpg --list-packets | grep 'issuer fpr'
+curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0xAD5E30F506DB217B8C4D02C9FD134449A70E5E66' | gpg --show-keys
+```
+
+Ha a két kimenetben ugyanaz az ujjlenyomat szerepel:
+
+```sh
+gh variable set SERVER_TAG_KEY_FPR --body AD5E30F506DB217B8C4D02C9FD134449A70E5E66
+```
+
+Ha egyszer más kulccsal (vagy aláírás nélkül) jön ki egy kiadás, a build leáll, és hibajegy nyílik.
+Ilyenkor nézz utána, valóban hiteles-e a kiadás, és szükség esetén írd át a változót.
+
 ## Beállítás saját példányhoz
 
 Ez a tároló már be van állítva és fut. Az alábbi lépések akkor kellenek, ha valaki egy saját
@@ -117,7 +158,9 @@ példányt akar indítani belőle (fork vagy másolat):
    | Változó | Jelentés | Alapérték |
    |---|---|---|
    | `MAINTAINER_NAME`, `MAINTAINER_EMAIL` | a changelog-bejegyzés szerzője | `XLibre auto-builder` |
-   | `MIRROR_EXTRAS` | egy másik APT tároló csomagjainak tükrözése (`MIRROR_URL`, `MIRROR_KEY_URL`, `MIRROR_KEY_FPR`) – a saját csomagokat felülírni nem tudja | `false` |
+   | `SERVER_TAG_KEY_FPR` | a szerver tag-aláírásának ellenőrzése ezzel a kulccsal (lásd *Biztonság*) | üres (kikapcsolva) |
+   | `SERVER_TAG_KEY_URL` | honnan töltse le ehhez a kulcsot | keyserver.ubuntu.com |
+   | `MIRROR_EXTRAS` | egy másik APT tároló csomagjainak tükrözése (`MIRROR_URL`, `MIRROR_KEY_URL`, kötelező `MIRROR_KEY_FPR`) – a saját csomagokat felülírni nem tudja | `false` |
    | `INCLUDE_DBGSYM` | debug csomagok publikálása | `false` |
    | `DEB_BUILD_OPTIONS` | pl. `nocheck` a gyorsabb buildhez | üres |
 5. **Fájlok feltöltése** (`git push`): ez magától elindítja az első futást, ami kb. 10 perc.

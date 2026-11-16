@@ -37,6 +37,9 @@ EOF
 sudo apt-get update
 sudo apt-get install xlibre</code></pre>
 <p>Debian Testing (Forky) esetén: <code>Components: testing</code>.</p>
+<p>A tároló aláíró kulcsának ujjlenyomata: <code>@KEY_FPR@</code><br>
+Ellenőrzés a letöltés után (a kiírt ujjlenyomatnak egyeznie kell a fentivel):
+<code>gpg --show-keys /usr/share/keyrings/xlibre-auto.pgp</code></p>
 <p>Ha korábban a xlibre-debian tárolót használtad, előbb töröld a
 <code>/etc/apt/sources.list.d/xlibre-debian.sources</code> fájlt. Ha az <code>apt</code> hiányzó
 függőséget jelez, engedélyezd a Debian <a href="https://backports.debian.org/Instructions/">backports</a> tárolót.</p>

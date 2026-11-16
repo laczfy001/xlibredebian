@@ -76,8 +76,10 @@ while IFS=$'\t' read -r name _; do
   fi
   echo "::endgroup::"
 
-  cp "$BUILD"/*.deb "$LOCAL/"
-  mv "$BUILD"/*.deb "$BUILD"/*.buildinfo "$BUILD"/*.changes "$OUT/"
+  debs=("$BUILD"/*.deb)
+  (( ${#debs[@]} )) || { echo "::error::$name: a fordítás nem adott .deb csomagot"; exit 1; }
+  cp "${debs[@]}" "$LOCAL/"
+  mv "${debs[@]}" "$BUILD"/*.buildinfo "$BUILD"/*.changes "$OUT/"
   (cd "$LOCAL" && dpkg-scanpackages -m . > Packages 2>/dev/null)
   apt-get update -qq
   echo ">> $name kész"

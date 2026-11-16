@@ -100,6 +100,7 @@ for tpl in "$(dirname "$0")"/../site/*.html.in; do
   sed -e "s#@SITE_URL@#${SITE_URL%/}/#g" \
       -e "s#@SERVER_VER@#${SERVER_VER:-?}#g" \
       -e "s#@DATE@#${NOW}#g" \
+      -e "s#@KEY_FPR@#${SIGNING_FPR:-–}#g" \
       "$tpl" > "$SITE/$(basename "$tpl" .in)"
 done
 touch "$SITE/.nojekyll"

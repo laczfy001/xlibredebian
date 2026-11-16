@@ -21,6 +21,11 @@ concurrency:
   group: xlibre-apt
   cancel-in-progress: false
 
+# Alapból minden feladat csak olvasási jogot kap; ahol több kell, ott a feladat külön kéri.
+# (A build feladatok az upstream projektek kódját futtatják – ott ne legyen írási jog.)
+permissions:
+  contents: read
+
 # Konténeres feladatokban a GitHub alapból sh-t használ; minden lépés fusson bash-sel.
 defaults:
   run:
@@ -38,6 +43,8 @@ jobs:
       build: ${{ steps.decide.outputs.build }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Upstream verziók lekérdezése (minden csomag)
         id: up
@@ -85,8 +92,10 @@ jobs:
       - name: Eszközök
         run: |
           apt-get update -qq
-          apt-get install -y -qq --no-install-recommends git ca-certificates xz-utils gzip dpkg-dev devscripts >/dev/null
+          apt-get install -y -qq --no-install-recommends git ca-certificates curl gnupg xz-utils gzip dpkg-dev devscripts >/dev/null
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           name: build-set
@@ -95,6 +104,8 @@ jobs:
           MAINTAINER_NAME: ${{ vars.MAINTAINER_NAME }}
           MAINTAINER_EMAIL: ${{ vars.MAINTAINER_EMAIL }}
           PACKAGING_ID: ${{ github.sha }}
+          SERVER_TAG_KEY_FPR: ${{ vars.SERVER_TAG_KEY_FPR }}
+          SERVER_TAG_KEY_URL: ${{ vars.SERVER_TAG_KEY_URL }}
         run: |
           set -euo pipefail
           BUILD_STAMP=$(date -u +%Y%m%d%H%M)
@@ -126,6 +137,8 @@ jobs:
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           name: source
@@ -187,6 +200,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Pages beállítás
         id: pages
         uses: actions/configure-pages@v6
@@ -203,12 +218,14 @@ jobs:
       - name: Tükrözött tároló kulcsa
         if: vars.MIRROR_EXTRAS == 'true'
         id: mirrorkey
+        env:
+          KEY_URL: ${{ vars.MIRROR_KEY_URL || 'https://mrchicken.nexussfan.cz/publickey.asc' }}
+          FPR: ${{ vars.MIRROR_KEY_FPR }}
         run: |
-          curl -fsSL "${{ vars.MIRROR_KEY_URL || 'https://mrchicken.nexussfan.cz/publickey.asc' }}" | gpg --batch --import
-          FPR="${{ vars.MIRROR_KEY_FPR }}"
-          if [[ -z "$FPR" ]]; then
-            FPR=$(curl -fsSL "${{ vars.MIRROR_KEY_URL || 'https://mrchicken.nexussfan.cz/publickey.asc' }}" | gpg --with-colons --import-options show-only --import | awk -F: '/^fpr/{print $10; exit}')
-          fi
+          # A letöltött kulcsban csak akkor bízunk, ha egyezik a kézzel rögzített ujjlenyomattal.
+          [[ "$FPR" =~ ^[0-9A-Fa-f]{40}$ ]] || { echo "::error::MIRROR_EXTRAS=true mellett a MIRROR_KEY_FPR (40 hexa karakter) kötelező"; exit 1; }
+          curl -fsSL "$KEY_URL" | gpg --batch --import
+          gpg --list-keys "$FPR" >/dev/null || { echo "::error::A letöltött kulcs nem egyezik a MIRROR_KEY_FPR-rel"; exit 1; }
           echo "fpr=$FPR" >> "$GITHUB_OUTPUT"
       - name: Legutóbbi saját build letöltése
         env:

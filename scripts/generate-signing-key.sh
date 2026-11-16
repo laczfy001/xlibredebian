@@ -4,6 +4,7 @@
 # Ezután:   gh secret set APT_SIGNING_KEY < apt-signing-private.asc
 #           és töröld biztonságosan a privát kulcsfájlt.
 set -euo pipefail
+umask 077   # a privát kulcsfájlt csak a tulajdonos olvashassa
 NAME=${1:?Név kell}
 EMAIL=${2:?E-mail cím kell}
 GNUPGHOME=$(mktemp -d)
