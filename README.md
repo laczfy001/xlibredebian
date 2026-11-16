@@ -1,5 +1,7 @@
 # XLibre APT tároló Debianra – automatikus frissítéssel
 
+**Magyar** | [English](README.en.md)
+
 Nem hivatalos Debian tároló az [XLibre X szerverhez](https://github.com/X11Libre/xserver) és a drivereihez.
 A [xlibre-debian/debian](https://github.com/xlibre-debian/debian) mintájára készült, de itt
 **a GitHub Actions naponta ellenőrzi, van-e új XLibre kiadás, és ha igen, magától lefordítja és publikálja.**
@@ -109,6 +111,7 @@ példányt akar indítani belőle (fork vagy másolat):
    gh secret set APT_SIGNING_KEY < apt-signing-private.asc
    shred -u apt-signing-private.asc
    ```
+   Előtte készíts a privát kulcsról offline biztonsági mentést: ha elveszik, minden felhasználónak új kulcsot kell importálnia.
 3. **Pages:** Settings → Pages → *Build and deployment* → Source: **GitHub Actions**.
 4. **Opcionális változók** (Settings → Secrets and variables → Actions → Variables):
    | Változó | Jelentés | Alapérték |

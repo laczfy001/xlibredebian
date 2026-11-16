@@ -1,5 +1,7 @@
 # Debian-csomagolások
 
+**Magyar** | [English](README.en.md)
+
 Ebben a mappában van minden csomag Debian-csomagolása (`<csomag>/debian/`). A forráskódot
 a workflow mindig a hivatalos [X11Libre GitHub](https://github.com/X11Libre) tárolókból tölti le.
 Más tárolótól nem függ.
@@ -75,6 +77,9 @@ A javítás után elég commitolni és pusholni: a `packaging/` mappa változás
 2. Vedd fel egy sorral a `packages.list`-be, a függőségei **után**.
 3. Ha a metacsomagnak is függenie kell tőle, írd be a `xlibre/debian/control` megfelelő
    `*-all` csomagjához.
+
+Ha egy csomag csak bizonyos architektúrákon fordítható (a `debian/control` `Architecture:` mezője
+szerint, pl. `any-amd64`), a fordítószkript a többi architektúrán magától kihagyja.
 
 ## Helyi próba (nem kötelező)
 
