@@ -10,7 +10,7 @@
 #   MIRROR_URL         – honnan tükrözzünk (pl. az xlibre-debian tároló)
 #   MIRROR_KEY_FPR     – a tükrözött tároló kulcsának ujjlenyomata (üresen: blindtrust)
 #   INCLUDE_DBGSYM     – true: a -dbgsym csomagok is bekerülnek
-#   SITE_URL           – a publikált tároló URL-je (index.html-hez)
+#   SITE_URL           – a publikált tároló URL-je (a nyitóoldalakhoz)
 set -euo pipefail
 
 IN=$(cd "$1" && pwd)
@@ -94,10 +94,14 @@ if [[ -n "${SIGNING_FPR:-}" ]]; then
 fi
 
 SERVER_VER=$("${R[@]}" -A source -C stable list main xlibre-server 2>/dev/null | awk '{print $3}' | head -n1 || true)
-sed -e "s#@SITE_URL@#${SITE_URL%/}/#g" \
-    -e "s#@SERVER_VER@#${SERVER_VER:-?}#g" \
-    -e "s#@DATE@#$(date -u '+%Y-%m-%d %H:%M UTC')#g" \
-    "$(dirname "$0")/../site/index.html.in" > "$SITE/index.html"
+NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+# Nyitóoldalak: site/<név>.html.in -> <név>.html (index.html: magyar, en.html: angol)
+for tpl in "$(dirname "$0")"/../site/*.html.in; do
+  sed -e "s#@SITE_URL@#${SITE_URL%/}/#g" \
+      -e "s#@SERVER_VER@#${SERVER_VER:-?}#g" \
+      -e "s#@DATE@#${NOW}#g" \
+      "$tpl" > "$SITE/$(basename "$tpl" .in)"
+done
 touch "$SITE/.nojekyll"
 
 rm -rf "$WORK"

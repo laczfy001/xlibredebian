@@ -9,9 +9,12 @@
   pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; border-radius: 6px; }
   code { font-family: ui-monospace, monospace; }
   .meta { color: #666; font-size: .9rem; }
+  .lang { float: right; font-size: .9rem; }
 </style>
+<link rel="alternate" hreflang="en" href="@SITE_URL@en.html">
 </head>
 <body>
+<p class="lang"><strong>Magyar</strong> | <a href="en.html" hreflang="en">English</a></p>
 <h1>XLibre APT tároló Debianra</h1>
 <p class="meta">xlibre-server: <strong>@SERVER_VER@</strong> · frissítve: @DATE@ · <a href="packages.txt">csomaglista</a></p>
 <p>Nem hivatalos, automatikusan frissülő tároló az <a href="https://github.com/X11Libre">XLibre</a>

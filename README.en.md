@@ -137,7 +137,7 @@ can specify a server version (`upstream_version`) and force a rebuild (`force`).
 | `scripts/build-binary.sh` | builds all packages in order, in a Debian container |
 | `scripts/publish-repo.sh` | assembles the APT repository (reprepro) |
 | `scripts/generate-signing-key.sh` | creates the signing key |
-| `site/index.html.in` | the repository's landing page |
+| `site/index.html.in`, `site/en.html.in` | the repository's landing page in Hungarian and English |
 
 ## License
 

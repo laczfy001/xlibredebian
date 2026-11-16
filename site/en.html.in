@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XLibre APT repository (automatic)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #222; }
+  pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; border-radius: 6px; }
+  code { font-family: ui-monospace, monospace; }
+  .meta { color: #666; font-size: .9rem; }
+  .lang { float: right; font-size: .9rem; }
+</style>
+<link rel="alternate" hreflang="hu" href="@SITE_URL@">
+</head>
+<body>
+<p class="lang"><a href="./" hreflang="hu">Magyar</a> | <strong>English</strong></p>
+<h1>XLibre APT repository for Debian</h1>
+<p class="meta">xlibre-server: <strong>@SERVER_VER@</strong> · updated: @DATE@ · <a href="packages.txt">package list</a></p>
+<p>Unofficial, automatically updated repository for the <a href="https://github.com/X11Libre">XLibre</a>
+X server and its drivers, built from the official sources.
+Debian 13 Trixie (<code>stable</code>) and Forky (<code>testing</code>), amd64 and arm64.
+Source and documentation: <a href="https://github.com/laczfy001/xlibredebian/blob/main/README.en.md">github.com/laczfy001/xlibredebian</a>.</p>
+<pre><code>sudo apt-get update
+sudo apt-get install -y ca-certificates curl gpg
+
+curl -fsSL @SITE_URL@key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/xlibre-auto.pgp &gt; /dev/null
+
+cat &lt;&lt;EOF | sudo tee /etc/apt/sources.list.d/xlibre-auto.sources
+Types: deb
+URIs: @SITE_URL@
+Suites: main
+Components: stable
+Signed-By: /usr/share/keyrings/xlibre-auto.pgp
+EOF
+
+sudo apt-get update
+sudo apt-get install xlibre</code></pre>
+<p>On Debian Testing (Forky), use <code>Components: testing</code>.</p>
+<p>If you previously used the xlibre-debian repository, first delete
+<code>/etc/apt/sources.list.d/xlibre-debian.sources</code>. If <code>apt</code> reports a missing
+dependency, enable Debian <a href="https://backports.debian.org/Instructions/">backports</a>.</p>
+<p>Switching back to Xorg:</p>
+<pre><code>sudo apt-get remove xlibre 'xserver-xlibre*'
+sudo apt-get install xorg
+sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources /usr/share/keyrings/xlibre-auto.pgp
+sudo apt-get update</code></pre>
+</body>
+</html>

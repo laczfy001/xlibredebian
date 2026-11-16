@@ -137,7 +137,7 @@ konkrét szerververzió (`upstream_version`) és kényszerített újrafordítás
 | `scripts/build-binary.sh` | az összes csomag fordítása sorrendben, Debian konténerben |
 | `scripts/publish-repo.sh` | APT tároló összeállítása (reprepro) |
 | `scripts/generate-signing-key.sh` | aláíró kulcs létrehozása |
-| `site/index.html.in` | a tároló nyitóoldala |
+| `site/index.html.in`, `site/en.html.in` | a tároló nyitóoldala magyarul és angolul |
 
 ## Licenc
 
