@@ -42,6 +42,17 @@ apt-get install -y -qq --no-install-recommends \
 
 BUILD=$(mktemp -d)
 shopt -s nullglob
+HOST_ARCH=$(dpkg --print-architecture)
+
+# Van-e a csomagban ezen az architektúrán fordítható bináris? (pl. vmmouse, intel, vesa: csak x86)
+has_binary_for_host() { # <debian/control>
+  local a
+  for a in $(awk '/^Architecture:/{ $1=""; print }' "$1"); do
+    [[ "$a" == "all" ]] && return 0
+    dpkg-architecture -a"$HOST_ARCH" -i "$a" 2>/dev/null && return 0
+  done
+  return 1
+}
 
 while IFS=$'\t' read -r name _; do
   [[ -z "$name" || "$name" == \#* ]] && continue
@@ -51,11 +62,16 @@ while IFS=$'\t' read -r name _; do
   echo "::group::$name"
   rm -rf "${BUILD:?}"/*
   dpkg-source -x "${dscs[0]}" "$BUILD/src"
+  if ! has_binary_for_host "$BUILD/src/debian/control"; then
+    echo "::endgroup::"
+    echo ">> $name kihagyva: $HOST_ARCH architektúrán nincs fordítható csomagja"
+    continue
+  fi
   if ! ( cd "$BUILD/src" \
          && apt-get build-dep -y ./ \
          && dpkg-buildpackage -b -uc -us -j"$(nproc)" ); then
     echo "::endgroup::"
-    echo "::error::$name fordítása sikertelen ($COMPONENT/$(dpkg --print-architecture))"
+    echo "::error::$name fordítása sikertelen ($COMPONENT/$HOST_ARCH)"
     exit 1
   fi
   echo "::endgroup::"
