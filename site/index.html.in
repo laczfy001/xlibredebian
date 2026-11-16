@@ -14,8 +14,10 @@
 <body>
 <h1>XLibre APT tároló Debianra</h1>
 <p class="meta">xlibre-server: <strong>@SERVER_VER@</strong> · frissítve: @DATE@ · <a href="packages.txt">csomaglista</a></p>
-<p>Nem hivatalos, automatikusan frissülő tároló. Debian Stable (Trixie) esetén a
-<a href="https://backports.debian.org/Instructions/">backports</a> engedélyezése szükséges.</p>
+<p>Nem hivatalos, automatikusan frissülő tároló az <a href="https://github.com/X11Libre">XLibre</a>
+X szerverhez és drivereihez, a hivatalos forrásokból fordítva.
+Debian 13 Trixie (<code>stable</code>) és Forky (<code>testing</code>), amd64 és arm64.
+Forrás és leírás: <a href="https://github.com/laczfy001/xlibredebian">github.com/laczfy001/xlibredebian</a>.</p>
 <pre><code>sudo apt-get update
 sudo apt-get install -y ca-certificates curl gpg
 
@@ -32,9 +34,13 @@ EOF
 sudo apt-get update
 sudo apt-get install xlibre</code></pre>
 <p>Debian Testing (Forky) esetén: <code>Components: testing</code>.</p>
+<p>Ha korábban a xlibre-debian tárolót használtad, előbb töröld a
+<code>/etc/apt/sources.list.d/xlibre-debian.sources</code> fájlt. Ha az <code>apt</code> hiányzó
+függőséget jelez, engedélyezd a Debian <a href="https://backports.debian.org/Instructions/">backports</a> tárolót.</p>
 <p>Visszatérés Xorg-ra:</p>
 <pre><code>sudo apt-get remove xlibre 'xserver-xlibre*'
 sudo apt-get install xorg
-sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources</code></pre>
+sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources /usr/share/keyrings/xlibre-auto.pgp
+sudo apt-get update</code></pre>
 </body>
 </html>

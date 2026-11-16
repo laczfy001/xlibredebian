@@ -6,6 +6,48 @@ A [xlibre-debian/debian](https://github.com/xlibre-debian/debian) mintájára k�
 Minden csomag a hivatalos [X11Libre GitHub](https://github.com/X11Libre) forrásaiból készül,
 a Debian-csomagolás pedig ebben a tárolóban van – más tárolótól nem függ.
 
+## Telepítés
+
+```sh
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gpg
+
+curl -fsSL https://laczfy001.github.io/xlibredebian/key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/xlibre-auto.pgp > /dev/null
+
+cat <<EOF | sudo tee /etc/apt/sources.list.d/xlibre-auto.sources
+Types: deb
+URIs: https://laczfy001.github.io/xlibredebian/
+Suites: main
+Components: stable
+Signed-By: /usr/share/keyrings/xlibre-auto.pgp
+EOF
+
+sudo apt-get update
+sudo apt-get install xlibre
+```
+
+Debian Testing (Forky) esetén `Components: testing`.
+
+Ha korábban a xlibre-debian tárolót használtad, előbb kapcsold ki, hogy ne legyen két forrás
+ugyanazokra a csomagokra. Az `apt-get upgrade` ezután a saját buildekre frissít, mert azok
+verziószáma mindig nagyobb:
+
+```sh
+sudo rm -f /etc/apt/sources.list.d/xlibre-debian.sources
+```
+
+Ha az `apt` hiányzó függőséget jelez, engedélyezd a Debian
+[backports](https://backports.debian.org/Instructions/) tárolót is.
+
+Visszatérés Xorg-ra:
+
+```sh
+sudo apt-get remove xlibre 'xserver-xlibre*'
+sudo apt-get install xorg
+sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources /usr/share/keyrings/xlibre-auto.pgp
+sudo apt-get update
+```
+
 ## Hogyan működik
 
 ```
@@ -22,7 +64,17 @@ naponta 03:17 UTC
 ```
 
 - **Csomagok:** az X szerver (`xserver-xlibre-*`), 10 input és 11 video driver, az
-  `x11proto-dev` és az `xlibre` metacsomag. A teljes lista: [packaging/packages.list](packaging/packages.list).
+  `x11proto-dev` és az `xlibre` metacsomag. A teljes lista: [packaging/packages.list](packaging/packages.list),
+  az aktuálisan publikált verziók: [packages.txt](https://laczfy001.github.io/xlibredebian/packages.txt).
+- **Támogatott rendszerek:**
+
+  | Debian | Komponens | Architektúrák |
+  |---|---|---|
+  | 13 Trixie (stable) | `stable` | amd64, arm64 |
+  | Forky (testing) | `testing` | amd64, arm64 |
+
+  arm64-en a csak x86-on értelmes driverek nem készülnek el (`vmmouse`, `intel`, `vesa`, `vmware`);
+  az `xlibre` metacsomag ott nem is kéri őket.
 - **Új build indul**, ha bármelyik csomagnak új upstream kiadása jelenik meg, *vagy* ha a
   `packaging/` mappában bármi változik. Ilyenkor minden csomag újrafordul, így a driverek
   mindig az aktuális szerverhez készülnek.
@@ -33,11 +85,24 @@ naponta 03:17 UTC
 - **ABI-védelem:** a szerver csomagolásának `abibumpcheck` lépése leállítja a buildet, ha az új
   upstream verzió megváltoztatja a driver ABI-t – ilyenkor nem kerül ki olyan szerver, amivel a driverek nem mennek.
 - **Hiba esetén** semmi nem kerül ki: a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
+- **Kiadások:** minden sikeres build a [Releases](https://github.com/laczfy001/xlibredebian/releases)
+  oldalra kerül, a csomagverziók listájával és a letölthető `.deb`/forrásfájlokkal.
 
-## Beállítás (egyszer)
+## Ha elromlik
 
-1. **Hozd létre a tárolót** GitHubon (nyilvános legyen – az ARM runner és a Pages így ingyenes),
-   és töltsd fel ezeket a fájlokat.
+Sikertelen futásnál automatikusan nyílik egy issue a futás linkjével. A naplóban a `::error::`
+sor mutatja, melyik csomag bukott el. Tipikus okok: nem illeszkedő patch, megváltozott driver ABI
+(`serverminver`), új build-függőség. A teendőket a [packaging/README.md](packaging/README.md) írja le;
+a javítás pusholása után a workflow magától újrapróbálja.
+
+Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
+
+## Beállítás saját példányhoz
+
+Ez a tároló már be van állítva és fut. Az alábbi lépések akkor kellenek, ha valaki egy saját
+példányt akar indítani belőle (fork vagy másolat):
+
+1. **Hozd létre a tárolót** GitHubon. Legyen nyilvános, mert így ingyenes az ARM runner és a Pages.
 2. **Aláíró kulcs:**
    ```sh
    ./scripts/generate-signing-key.sh "Neved" email@cimed.hu
@@ -52,52 +117,10 @@ naponta 03:17 UTC
    | `MIRROR_EXTRAS` | egy másik APT tároló csomagjainak tükrözése (`MIRROR_URL`, `MIRROR_KEY_URL`, `MIRROR_KEY_FPR`) – a saját csomagokat felülírni nem tudja | `false` |
    | `INCLUDE_DBGSYM` | debug csomagok publikálása | `false` |
    | `DEB_BUILD_OPTIONS` | pl. `nocheck` a gyorsabb buildhez | üres |
-5. **Első futás:** Actions → *XLibre build és APT tároló* → **Run workflow**.
+5. **Fájlok feltöltése** (`git push`): ez magától elindítja az első futást, ami kb. 10 perc.
 
-Kézi futtatáskor megadható konkrét szerververzió (`upstream_version`) és kényszerített újrafordítás (`force`).
-
-## Telepítés a felhasználók gépén
-
-Cseréld ki a `FELHASZNALO/TAROLO` részt a saját GitHub-nevedre és tárolónevedre.
-Debian Stable (Trixie) esetén engedélyezd a [backports](https://backports.debian.org/Instructions/) tárolót.
-
-```sh
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gpg
-
-curl -fsSL https://FELHASZNALO.github.io/TAROLO/key.asc | gpg --dearmor | sudo tee /usr/share/keyrings/xlibre-auto.pgp > /dev/null
-
-cat <<EOF | sudo tee /etc/apt/sources.list.d/xlibre-auto.sources
-Types: deb
-URIs: https://FELHASZNALO.github.io/TAROLO/
-Suites: main
-Components: stable
-Signed-By: /usr/share/keyrings/xlibre-auto.pgp
-EOF
-
-sudo apt-get update
-sudo apt-get install xlibre
-```
-
-Debian Testing (Forky) esetén `Components: testing`. Ha korábban az xlibre-debian tárolót
-használtad, annak `.sources` fájlját töröld, hogy ne legyen két forrás ugyanarra.
-
-Visszatérés Xorg-ra:
-
-```sh
-sudo apt-get remove xlibre 'xserver-xlibre*'
-sudo apt-get install xorg
-sudo rm -f /etc/apt/sources.list.d/xlibre-auto.sources
-```
-
-## Ha elromlik
-
-Sikertelen futásnál automatikusan nyílik egy issue a futás linkjével. A naplóban a `::error::`
-sor mutatja, melyik csomag bukott el. Tipikus okok: nem illeszkedő patch, megváltozott driver ABI
-(`serverminver`), új build-függőség. A teendőket a [packaging/README.md](packaging/README.md) írja le;
-a javítás pusholása után a workflow magától újrapróbálja.
-
-Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
+Kézzel is indítható: Actions → *XLibre build és APT tároló* → **Run workflow**. Ekkor megadható
+konkrét szerververzió (`upstream_version`) és kényszerített újrafordítás (`force`).
 
 ## Fájlok
 
@@ -112,3 +135,11 @@ Ilyenkor a tároló a legutóbbi sikeres buildet szolgálja ki tovább.
 | `scripts/publish-repo.sh` | APT tároló összeállítása (reprepro) |
 | `scripts/generate-signing-key.sh` | aláíró kulcs létrehozása |
 | `site/index.html.in` | a tároló nyitóoldala |
+
+## Licenc
+
+A tároló saját fájljai (workflow, szkriptek, nyitóoldal) a [GNU GPL v3](LICENSE) alatt érhetők el.
+A `packaging/` alatti Debian-csomagolások és a belőlük készült csomagok a saját licencük alá
+tartoznak; ezt csomagonként a `debian/copyright` fájl tartalmazza.
+Az XLibre a [X11Libre](https://github.com/X11Libre) projekt munkája; ez a tároló nem hivatalos,
+és nem áll kapcsolatban a projekttel.
